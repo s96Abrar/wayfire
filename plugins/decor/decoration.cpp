@@ -13,7 +13,7 @@ struct wayfire_decoration_global_cleanup_t
     {
         for (auto view : wf::get_core().get_all_views())
         {
-            view->set_decoration(nullptr);
+            deinit_view(view);
         }
     }
 };
@@ -68,7 +68,7 @@ class wayfire_decoration :
             }
         } else
         {
-            view->set_decoration(nullptr);
+            deinit_view(view);
         }
     }
 
@@ -76,7 +76,7 @@ class wayfire_decoration :
     {
         for (auto& view : output->workspace->get_views_in_layer(wf::ALL_LAYERS))
         {
-            view->set_decoration(nullptr);
+            deinit_view(view);
         }
 
         singleton_plugin_t::fini();

@@ -81,6 +81,7 @@ class simple_decoration_surface : public wf::surface_interface_t,
     {
         this->view = view;
         view->connect_signal("title-changed", &title_set);
+        view->connect_signal("unmapped", &on_base_view_unmap);
 
         // make sure to hide frame if the view is fullscreen
         update_decoration_size();
@@ -88,8 +89,6 @@ class simple_decoration_surface : public wf::surface_interface_t,
 
     virtual ~simple_decoration_surface()
     {
-        _mapped = false;
-        wf::emit_map_state_change(this);
         view->disconnect_signal("title-changed", &title_set);
     }
 
@@ -258,6 +257,19 @@ class simple_decoration_surface : public wf::surface_interface_t,
         target_height = std::max(target_height, 1);
     }
 
+    wf::signal_connection_t on_base_view_unmap = [&] (wf::signal_data_t *data)
+    {
+        unmap();
+        // remove self
+        view->set_decoration(nullptr);
+    };
+
+    void unmap()
+    {
+        _mapped = false;
+        wf::emit_map_state_change(this);
+    }
+
     virtual void notify_view_activated(bool active) override
     {
         if (this->active != active)
@@ -316,9 +328,22 @@ class simple_decoration_surface : public wf::surface_interface_t,
 void init_view(wayfire_view view)
 {
     auto surf = std::make_unique<simple_decoration_surface>(view);
-    nonstd::observer_ptr<simple_decoration_surface> ptr{surf};
+    auto ptr  = surf.get();
 
     view->add_subsurface(std::move(surf), true);
-    view->set_decoration(ptr.get());
+    view->set_decoration(ptr);
     view->damage();
+}
+
+void deinit_view(wayfire_view view)
+{
+    auto decor = dynamic_cast<simple_decoration_surface*>(
+        view->get_decoration().get());
+    if (!decor)
+    {
+        return;
+    }
+
+    decor->unmap();
+    view->set_decoration(nullptr);
 }
