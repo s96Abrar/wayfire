@@ -655,6 +655,11 @@ bool wf::view_interface_t::should_be_decorated()
     return false;
 }
 
+nonstd::observer_ptr<wf::surface_interface_t> wf::view_interface_t::get_decoration()
+{
+    return this->view_impl->decoration;
+}
+
 void wf::view_interface_t::set_decoration(surface_interface_t *frame)
 {
     if (this->view_impl->decoration == frame)
@@ -1137,9 +1142,7 @@ void wf::view_interface_t::initialize()
 
 void wf::view_interface_t::deinitialize()
 {
-    this->view_impl->decoration = nullptr;
-    this->view_impl->frame = nullptr;
-
+    set_decoration(nullptr);
     this->priv->surface_children_below.clear();
     this->priv->surface_children_above.clear();
     this->view_impl->transforms.clear();

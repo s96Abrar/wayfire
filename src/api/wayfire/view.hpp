@@ -306,6 +306,11 @@ class view_interface_t : public surface_interface_t, public wf::object_base_t
      */
     virtual void set_decoration(surface_interface_t *frame);
 
+    /**
+     * Get the decoration surface for a view. May be nullptr.
+     */
+    virtual nonstd::observer_ptr<surface_interface_t> get_decoration();
+
     /*
      *                        View transforms
      * A view transform can be any kind of transformation, for example 3D
