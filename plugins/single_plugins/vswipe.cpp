@@ -11,8 +11,6 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <wayfire/util/duration.hpp>
 
-#include <wayfire/util/log.hpp>
-
 #include <cmath>
 #include <utility>
 
@@ -281,7 +279,6 @@ class vswipe : public wf::plugin_interface_t
             /* Consider promoting to diagonal movement */
             double other = (state.direction == HORIZONTAL ?
                 state.delta_sum.y : state.delta_sum.x);
-            LOGI("now we have ", state.delta_sum.x, " ", state.delta_sum.y);
             if (std::abs(other) > secondary_direction_threshold)
             {
                 state.direction = DIAGONAL;
