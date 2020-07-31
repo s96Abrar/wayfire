@@ -59,6 +59,7 @@ class workspace_switch_t
             output->workspace->get_current_workspace()));
         wall->set_background_color(background_color);
         wall->start_output_renderer();
+        running = true;
 
         /* Setup animation */
         animation.dx.set(0, 0);
@@ -147,6 +148,12 @@ class workspace_switch_t
             output->workspace->set_workspace(get_target_workspace());
         }
         wall->stop_output_renderer(true);
+        running = false;
+    }
+
+    virtual bool is_running() const
+    {
+        return running;
     }
 
     virtual ~workspace_switch_t()
@@ -164,6 +171,7 @@ class workspace_switch_t
     const std::string vswitch_view_transformer_name = "vswitch-transformer";
     wayfire_view overlay_view;
 
+    bool running = false;
     wf::signal_connection_t on_frame = [=] (wf::signal_data_t *data)
     {
         render_frame(static_cast<wall_frame_event_t*>(data)->target);
