@@ -454,7 +454,7 @@ class wayfire_cube : public wf::plugin_interface_t
     }
 
     /* Calculate the base model matrix for the i-th side of the cube */
-    glm::mat4 calculate_model_matrix(int i, glm::mat4 fb_transform)
+    glm::mat4 calculate_model_matrix(int i)
     {
         auto rotation = glm::rotate(glm::mat4(
             1.0),
@@ -464,6 +464,7 @@ class wayfire_cube : public wf::plugin_interface_t
         auto translation =
             glm::translate(glm::mat4(1.0), glm::vec3(0, 0, identity_z_offset));
 
+        auto fb_transform = output->render->get_target_framebuffer().transform;
         return rotation * translation * glm::inverse(fb_transform);
     }
 
@@ -479,7 +480,7 @@ class wayfire_cube : public wf::plugin_interface_t
             int index = (cws.x + i) % streams.size();
             GL_CALL(glBindTexture(GL_TEXTURE_2D, streams[index].buffer.tex));
 
-            auto model = calculate_model_matrix(i, fb_transform);
+            auto model = calculate_model_matrix(i);
             program.uniformMatrix4f("model", model);
 
             if (tessellation_support)

@@ -59,8 +59,8 @@ class wayfire_zoom_screen : public wf::plugin_interface_t
         return true;
     };
 
-    wf::post_hook_t render_hook = [=] (const wf::framebuffer_base_t& source,
-                                       const wf::framebuffer_base_t& destination)
+    wf::post_hook_t render_hook = [=] (const wf::framebuffer_t& source,
+                                       const wf::framebuffer_t& destination)
     {
         auto w = destination.viewport_width;
         auto h = destination.viewport_height;
@@ -71,8 +71,7 @@ class wayfire_zoom_screen : public wf::plugin_interface_t
 
         /* get rotation & scale */
         wlr_box box = {int(x), int(y), 1, 1};
-        box = output->render->get_target_framebuffer().
-            framebuffer_box_from_geometry_box(box);
+        box = source.framebuffer_box_from_geometry_box(box);
 
         x = box.x;
         y = h - box.y;
@@ -86,6 +85,7 @@ class wayfire_zoom_screen : public wf::plugin_interface_t
         OpenGL::render_begin(source);
         GL_CALL(glBindFramebuffer(GL_READ_FRAMEBUFFER, source.fb));
         GL_CALL(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, destination.fb));
+
         GL_CALL(glBlitFramebuffer(x1, y1, x1 + tw, y1 + th, 0, 0, w, h,
             GL_COLOR_BUFFER_BIT, GL_LINEAR));
         OpenGL::render_end();

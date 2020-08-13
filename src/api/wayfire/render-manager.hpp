@@ -47,8 +47,8 @@ enum output_effect_type_t
  *
  * @param destination Indicates where the processed image should be stored.
  */
-using post_hook_t = std::function<void (const wf::framebuffer_base_t& source,
-    const wf::framebuffer_base_t& destination)>;
+using post_hook_t = std::function<void (const wf::framebuffer_t& source,
+    const wf::framebuffer_t& destination)>;
 
 /** Render manager
  *

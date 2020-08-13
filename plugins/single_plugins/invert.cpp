@@ -10,11 +10,12 @@ static const char *vertex_shader =
 attribute mediump vec2 position;
 attribute highp vec2 uvPosition;
 
+uniform mediump mat4 MVP;
 varying highp vec2 uvpos;
 
 void main() {
 
-    gl_Position = vec4(position.xy, 0.0, 1.0);
+    gl_Position = MVP * vec4(position.xy, 0.0, 1.0);
     uvpos = uvPosition;
 }
 )";
@@ -49,8 +50,8 @@ class wayfire_invert_screen : public wf::plugin_interface_t
         grab_interface->name = "invert";
         grab_interface->capabilities = 0;
 
-        hook = [=] (const wf::framebuffer_base_t& source,
-                    const wf::framebuffer_base_t& destination)
+        hook = [=] (const wf::framebuffer_t& source,
+                    const wf::framebuffer_t& destination)
         {
             render(source, destination);
         };
@@ -83,8 +84,8 @@ class wayfire_invert_screen : public wf::plugin_interface_t
         output->add_activator(toggle_key, &toggle_cb);
     }
 
-    void render(const wf::framebuffer_base_t& source,
-        const wf::framebuffer_base_t& destination)
+    void render(const wf::framebuffer_t& source,
+        const wf::framebuffer_t& destination)
     {
         static const float vertexData[] = {
             -1.0f, -1.0f,
@@ -106,6 +107,8 @@ class wayfire_invert_screen : public wf::plugin_interface_t
         GL_CALL(glBindTexture(GL_TEXTURE_2D, source.tex));
         GL_CALL(glActiveTexture(GL_TEXTURE0));
 
+        program.uniformMatrix4f("MVP", destination.transform *
+            glm::inverse(source.transform));
         program.attrib_pointer("position", 2, 0, vertexData);
         program.attrib_pointer("uvPosition", 2, 0, coordData);
 

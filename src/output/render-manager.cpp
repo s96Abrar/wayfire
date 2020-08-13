@@ -23,6 +23,22 @@ extern "C"
 #include <wlr/util/region.h>
 }
 
+static void workaround_wlroots_backend_y_invert(
+    wf::framebuffer_t& fb)
+{
+    /* Sometimes, the framebuffer by OpenGL is Y-inverted.
+     * This is the case only if the target framebuffer is not 0 */
+    if (fb.fb == 0)
+    {
+        return;
+    }
+
+    fb.wl_transform = wlr_output_transform_compose(
+        (wl_output_transform)fb.wl_transform, WL_OUTPUT_TRANSFORM_FLIPPED_180);
+    fb.transform = get_output_matrix_from_transform(
+        (wl_output_transform)fb.wl_transform);
+}
+
 namespace wf
 {
 /**
@@ -262,7 +278,7 @@ struct postprocessing_manager_t
 {
     using post_container_t = wf::safe_list_t<post_hook_t*>;
     post_container_t post_effects;
-    wf::framebuffer_base_t post_buffers[3];
+    wf::framebuffer_t post_buffers[3];
     /* Buffer to which other operations render to */
     static constexpr uint32_t default_out_buffer = 0;
 
@@ -285,6 +301,7 @@ struct postprocessing_manager_t
 
         OpenGL::render_begin();
         post_buffers[default_out_buffer].allocate(width, height);
+        post_buffers[default_out_buffer].geometry = {0, 0, width, height};
         OpenGL::render_end();
     }
 
@@ -308,8 +325,11 @@ struct postprocessing_manager_t
      * damage. So, we need to keep the whole buffer each frame. */
     void run_post_effects()
     {
-        static wf::framebuffer_base_t default_framebuffer;
-        default_framebuffer.tex = default_framebuffer.fb = 0;
+        wf::framebuffer_t default_framebuffer =
+            output->render->get_target_framebuffer();
+        default_framebuffer.fb = output_fb;
+        default_framebuffer.tex = 0;
+        workaround_wlroots_backend_y_invert(default_framebuffer);
 
         int last_buffer_idx = default_out_buffer;
         int next_buffer_idx = 1;
@@ -318,13 +338,14 @@ struct postprocessing_manager_t
         {
             /* The last postprocessing hook renders directly to the screen, others to
              * the currently free buffer */
-            wf::framebuffer_base_t& next_buffer =
+            wf::framebuffer_t& next_buffer =
                 (post == post_effects.back() ? default_framebuffer :
                     post_buffers[next_buffer_idx]);
 
             OpenGL::render_begin();
             /* Make sure we have the correct resolution */
             next_buffer.allocate(output_width, output_height);
+            next_buffer.geometry = {0, 0, (int)output_width, (int)output_height};
             OpenGL::render_end();
 
             (*post)(post_buffers[last_buffer_idx], next_buffer);
@@ -332,6 +353,12 @@ struct postprocessing_manager_t
             last_buffer_idx  = next_buffer_idx;
             next_buffer_idx ^= 0b11; // alternate 1 and 2
         });
+    }
+
+    uint32_t output_fb = 0;
+    void set_output_framebuffer(uint32_t output_fb)
+    {
+        this->output_fb = output_fb;
     }
 
     /**
@@ -345,7 +372,7 @@ struct postprocessing_manager_t
             tex = post_buffers[default_out_buffer].tex;
         } else
         {
-            fb  = 0;
+            fb  = output_fb;
             tex = 0;
         }
     }
@@ -491,7 +518,6 @@ class wf::render_manager::impl
         fb.transform    = get_output_matrix_from_transform(
             (wl_output_transform)fb.wl_transform);
         fb.scale = output->handle->scale;
-
         postprocessing->get_default_target(fb.fb, fb.tex);
 
         fb.viewport_width  = output->handle->width;
@@ -505,9 +531,9 @@ class wf::render_manager::impl
     /**
      * Bind the output's EGL surface, allocate buffers
      */
-    void bind_output()
+    void bind_output(uint32_t fb)
     {
-        OpenGL::bind_output(output);
+        OpenGL::bind_output(output, fb);
 
         /* Make sure the default buffer has enough size */
         postprocessing->allocate(output->handle->width, output->handle->height);
@@ -525,7 +551,8 @@ class wf::render_manager::impl
              * visible */
             swap_damage |= output_damage->get_wlr_damage_box();
 
-            OpenGL::render_begin(output->handle->width, output->handle->height, 0);
+            OpenGL::render_begin(output->handle->width, output->handle->height,
+                postprocessing->output_fb);
             OpenGL::clear({1, 1, 0, 1});
             OpenGL::render_end();
         }
@@ -564,7 +591,9 @@ class wf::render_manager::impl
     {
         if (renderer)
         {
-            renderer(get_target_framebuffer());
+            auto fb = get_target_framebuffer();
+            workaround_wlroots_backend_y_invert(fb);
+            renderer(fb);
             /* TODO: let custom renderers specify what they want to repaint... */
             swap_damage |= output_damage->get_wlr_damage_box();
         } else
@@ -573,6 +602,62 @@ class wf::render_manager::impl
                 output_damage->get_scheduled_damage() * output->handle->scale;
             swap_damage &= output_damage->get_wlr_damage_box();
             default_renderer();
+        }
+    }
+
+    /** Depth buffer for output */
+    struct {
+        GLuint tex = -1;
+        int attached_to = -1;
+        int width = 0;
+        int height = 0;
+    } depth_buffer;
+    void update_depth_attachment(int fb)
+    {
+        return;
+        if (fb == depth_buffer.attached_to || fb == 0)
+        {
+            return;
+        }
+
+        if (depth_buffer.tex == (GLuint)-1)
+        {
+            GL_CALL(glGenTextures(1, &depth_buffer.tex));
+        }
+
+        int width = output->handle->width;
+        int height = output->handle->height;
+        if (depth_buffer.width != width || depth_buffer.height != height)
+        {
+            GL_CALL(glBindTexture(GL_TEXTURE_2D, depth_buffer.tex));
+            GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F,
+                    width, height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL));
+
+            depth_buffer.width = width;
+            depth_buffer.height = height;
+        }
+
+        GL_CALL(glBindTexture(GL_TEXTURE_2D, depth_buffer.tex));
+        GL_CALL(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
+                GL_TEXTURE_2D, depth_buffer.tex, 0));
+        GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
+    }
+
+    void update_bound_output()
+    {
+        int current_fb;
+        GL_CALL(glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &current_fb));
+        update_depth_attachment(current_fb);
+
+
+        bind_output(current_fb);
+        postprocessing->set_output_framebuffer(current_fb);
+        for (auto& row : this->default_streams)
+        {
+            for (auto& ws : row)
+            {
+                ws.buffer.fb = current_fb;
+            }
         }
     }
 
@@ -608,7 +693,7 @@ class wf::render_manager::impl
             return;
         }
 
-        bind_output();
+        update_bound_output();
 
         /* Part 2: call the renderer, which sets swap_damage and
          * draws the scenegraph */
@@ -630,7 +715,8 @@ class wf::render_manager::impl
         postprocessing->run_post_effects();
         if (output_inhibit_counter)
         {
-            OpenGL::render_begin(output->handle->width, output->handle->height, 0);
+            OpenGL::render_begin(output->handle->width, output->handle->height,
+                postprocessing->output_fb);
             OpenGL::clear({0, 0, 0, 1});
             OpenGL::render_end();
         }
@@ -925,11 +1011,14 @@ class wf::render_manager::impl
         OpenGL::render_end();
 
         repaint.fb = get_target_framebuffer();
-        if ((stream.buffer.fb != 0) && (stream.buffer.tex != 0))
+        if ((stream.buffer.tex != 0))
         {
             /* Use the workspace buffers */
             repaint.fb.fb  = stream.buffer.fb;
             repaint.fb.tex = stream.buffer.tex;
+        } else if (postprocessing->post_effects.size() == 0)
+        {
+            workaround_wlroots_backend_y_invert(repaint.fb);
         }
 
         auto g   = output->get_relative_geometry();

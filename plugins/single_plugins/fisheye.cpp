@@ -33,10 +33,11 @@ static const char *vertex_shader =
 #version 100
 
 attribute mediump vec2 position;
+uniform mediump mat4 MVP;
 
 void main() {
 
-    gl_Position = vec4(position.xy, 0.0, 1.0);
+    gl_Position = MVP * vec4(position.xy, 0.0, 1.0);
 }
 )";
 
@@ -160,8 +161,8 @@ class wayfire_fisheye : public wf::plugin_interface_t
         return true;
     };
 
-    wf::post_hook_t render_hook = [=] (const wf::framebuffer_base_t& source,
-                                       const wf::framebuffer_base_t& dest)
+    wf::post_hook_t render_hook = [=] (const wf::framebuffer_t& source,
+                                       const wf::framebuffer_t& dest)
     {
         auto oc     = output->get_cursor_position();
         wlr_box box = {(int)oc.x, (int)oc.y, 1, 1};
@@ -187,6 +188,8 @@ class wayfire_fisheye : public wf::plugin_interface_t
         program.uniform1f("u_radius", radius);
         program.uniform1f("u_zoom", progression);
 
+        program.uniformMatrix4f("MVP", dest.transform *
+            glm::inverse(source.transform));
         program.attrib_pointer("position", 2, 0, vertexData);
 
         GL_CALL(glDrawArrays(GL_TRIANGLE_FAN, 0, 4));
