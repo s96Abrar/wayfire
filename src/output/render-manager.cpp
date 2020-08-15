@@ -384,7 +384,7 @@ class wf::render_manager::impl
     wf::wl_listener_wrapper on_frame;
     wf::wl_listener_wrapper on_present;
     wf::wl_timer repaint_timer;
-    int64_t refresh_nsec;
+    int64_t refresh_nsec = 0;
 
     output_t *output;
     wf::region_t swap_damage;
@@ -612,9 +612,9 @@ class wf::render_manager::impl
         int width = 0;
         int height = 0;
     } depth_buffer;
+
     void update_depth_attachment(int fb)
     {
-        return;
         if (fb == depth_buffer.attached_to || fb == 0)
         {
             return;
@@ -648,7 +648,6 @@ class wf::render_manager::impl
         int current_fb;
         GL_CALL(glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &current_fb));
         update_depth_attachment(current_fb);
-
 
         bind_output(current_fb);
         postprocessing->set_output_framebuffer(current_fb);
