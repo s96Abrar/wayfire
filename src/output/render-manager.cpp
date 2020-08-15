@@ -339,7 +339,6 @@ struct postprocessing_manager_t
             output->render->get_target_framebuffer();
         default_framebuffer.fb = output_fb;
         default_framebuffer.tex = 0;
-        workaround_wlroots_backend_y_invert(default_framebuffer);
 
         int last_buffer_idx = default_out_buffer;
         int next_buffer_idx = 1;
@@ -531,6 +530,7 @@ class wf::render_manager::impl
 
         fb.viewport_width  = output->handle->width;
         fb.viewport_height = output->handle->height;
+        workaround_wlroots_backend_y_invert(fb);
 
         return fb;
     }
@@ -601,10 +601,6 @@ class wf::render_manager::impl
         if (renderer)
         {
             auto fb = get_target_framebuffer();
-            if (postprocessing->post_effects.size() == 0)
-            {
-                workaround_wlroots_backend_y_invert(fb);
-            }
             renderer(fb);
             /* TODO: let custom renderers specify what they want to repaint... */
             swap_damage |= output_damage->get_wlr_damage_box();
@@ -1027,9 +1023,6 @@ class wf::render_manager::impl
             /* Use the workspace buffers */
             repaint.fb.fb  = stream.buffer.fb;
             repaint.fb.tex = stream.buffer.tex;
-        } else if (postprocessing->post_effects.size() == 0)
-        {
-            workaround_wlroots_backend_y_invert(repaint.fb);
         }
 
         auto g   = output->get_relative_geometry();
