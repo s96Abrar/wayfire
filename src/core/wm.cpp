@@ -83,13 +83,21 @@ void wayfire_focus::init()
     output->add_button(
         wf::create_option_string<wf::buttonbinding_t>("BTN_LEFT"), &on_button);
 
-    on_touch = [=] (int x, int y)
+    // build touch gesture
+    auto on_tap = std::make_unique<wf::touch::touch_action_t>(1, true);
+    std::vector<std::unique_ptr<wf::touch::gesture_action_t>> actions;
+    actions.emplace_back(std::move(on_tap));
+    const auto& on_tap_action = [this] ()
     {
-        this->check_focus_surface(wf::get_core().get_touch_focus());
-
-        return true;
+        if (wf::get_core().get_active_output() == this->output)
+        {
+            this->check_focus_surface(wf::get_core().get_touch_focus());
+        }
     };
-    output->add_touch(wf::create_option<wf::keybinding_t>({0, 0}), &on_touch);
+
+    this->tap_gesture =
+        std::make_unique<wf::touch::gesture_t>(std::move(actions), on_tap_action);
+    wf::get_core().add_touch_gesture(tap_gesture);
 }
 
 void wayfire_focus::check_focus_surface(wf::surface_interface_t *focus)
@@ -111,6 +119,6 @@ void wayfire_focus::check_focus_surface(wf::surface_interface_t *focus)
 void wayfire_focus::fini()
 {
     output->rem_binding(&on_button);
-    output->rem_binding(&on_touch);
+    wf::get_core().rem_touch_gesture(tap_gesture);
     output->disconnect_signal("wm-focus-request", &on_wm_focus_request);
 }

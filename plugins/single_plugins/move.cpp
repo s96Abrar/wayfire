@@ -64,7 +64,6 @@ class wayfire_move : public wf::plugin_interface_t
 {
     wf::signal_callback_t move_request, view_destroyed;
     wf::button_callback activate_binding;
-    wf::touch_callback touch_activate_binding;
     wayfire_view view;
 
     wf::option_wrapper_t<bool> enable_snap{"move/enable_snap"};
@@ -104,24 +103,7 @@ class wayfire_move : public wf::plugin_interface_t
             return false;
         };
 
-        touch_activate_binding = [=] (int32_t sx, int32_t sy)
-        {
-            is_using_touch     = true;
-            was_client_request = false;
-            auto view = wf::get_core().get_touch_focus_view();
-
-            if (view && (view->role != wf::VIEW_ROLE_DESKTOP_ENVIRONMENT))
-            {
-                return initiate(view);
-            }
-
-            return false;
-        };
-
         output->add_button(activate_button, &activate_binding);
-        output->add_touch(
-            wf::create_option_string<wf::keybinding_t>("<super>"),
-            &touch_activate_binding);
 
         using namespace std::placeholders;
         grab_interface->callbacks.pointer.button =
@@ -637,7 +619,6 @@ class wayfire_move : public wf::plugin_interface_t
         }
 
         output->rem_binding(&activate_binding);
-        output->rem_binding(&touch_activate_binding);
         output->disconnect_signal("view-move-request", &move_request);
         output->disconnect_signal("view-disappeared", &view_destroyed);
     }

@@ -23,11 +23,6 @@ extern "C"
 #include "tablet.hpp"
 #include "pointing-device.hpp"
 
-bool input_manager::is_touch_enabled()
-{
-    return touch_count > 0;
-}
-
 void input_manager::update_capabilities()
 {
     uint32_t cap = 0;
@@ -89,12 +84,8 @@ void input_manager::handle_new_input(wlr_input_device *dev)
     if (dev->type == WLR_INPUT_DEVICE_TOUCH)
     {
         touch_count++;
-        if (!our_touch)
-        {
-            our_touch = std::unique_ptr<wf_touch>(new wf_touch(cursor->cursor));
-        }
-
-        our_touch->add_device(dev);
+        // XXX: this should go to cursor as well
+        touch->handle_new_device(dev);
     }
 
     update_capabilities();
@@ -181,42 +172,6 @@ input_manager::input_manager()
 
     create_seat();
 
-    surface_map_state_changed = [=] (wf::signal_data_t *data)
-    {
-        auto ev = static_cast<wf::surface_map_state_changed_signal*>(data);
-        if (our_touch)
-        {
-            if (ev && (our_touch->grabbed_surface == ev->surface) &&
-                !ev->surface->is_mapped())
-            {
-                our_touch->end_touch_down_grab();
-            }
-
-            on_views_updated(nullptr);
-        }
-    };
-
-    wf::get_core().connect_signal("surface-mapped", &surface_map_state_changed);
-    wf::get_core().connect_signal("surface-unmapped", &surface_map_state_changed);
-
-    on_views_updated = [&] (wf::signal_data_t *data)
-    {
-        if (!our_touch)
-        {
-            return;
-        }
-
-        auto touch_points = our_touch->gesture_recognizer.current;
-        for (auto f : touch_points)
-        {
-            our_touch->gesture_recognizer.update_touch(wf::get_current_time(),
-                f.first, f.second.current, false);
-        }
-    };
-
-    wf::get_core().connect_signal("output-stack-order-changed", &on_views_updated);
-    wf::get_core().connect_signal("view-geometry-changed", &on_views_updated);
-
     config_updated = [=] (wf::signal_data_t*)
     {
         for (auto& dev : input_devices)
@@ -248,10 +203,6 @@ input_manager::input_manager()
 input_manager::~input_manager()
 {
     wf::get_core().disconnect_signal("reload-config", &config_updated);
-    wf::get_core().disconnect_signal("surface-mapped",
-        &surface_map_state_changed);
-    wf::get_core().disconnect_signal("surface-unmapped",
-        &surface_map_state_changed);
     wf::get_core().output_layout->disconnect_signal(
         "output-added", &output_added);
 }
@@ -276,11 +227,7 @@ bool input_manager::grab_input(wf::plugin_grab_interface_t *iface)
     }
 
     assert(!active_grab); // cannot have two active input grabs!
-
-    if (our_touch)
-    {
-        our_touch->input_grabbed();
-    }
+    touch->set_grab(iface);
 
     active_grab = iface;
 
@@ -311,6 +258,7 @@ void input_manager::ungrab_input()
      * still an active input grab) */
     idle_update_cursor.run_once([&] ()
     {
+        touch->set_grab(nullptr);
         lpointer->set_enable_focus(true);
     });
 }

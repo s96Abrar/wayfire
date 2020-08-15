@@ -192,8 +192,6 @@ class output_t : public wf::object_base_t
     wf::binding_t *add_key(option_sptr_t<keybinding_t> key, wf::key_callback*);
     wf::binding_t *add_axis(option_sptr_t<keybinding_t> axis,
         wf::axis_callback*);
-    wf::binding_t *add_touch(option_sptr_t<keybinding_t> mod,
-        wf::touch_callback*);
     wf::binding_t *add_button(option_sptr_t<buttonbinding_t> button,
         wf::button_callback*);
     wf::binding_t *add_gesture(option_sptr_t<touchgesture_t> gesture,

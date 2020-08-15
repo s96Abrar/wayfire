@@ -307,7 +307,7 @@ bool input_manager::handle_keyboard_key(uint32_t key, uint32_t state)
         if (mod)
         {
             bool modifiers_only = !lpointer->has_pressed_buttons() &&
-                (!our_touch || our_touch->gesture_recognizer.current.empty());
+                (touch->get_state().fingers.empty());
 
             for (size_t i = 0; kbd && i < kbd->num_keycodes; i++)
             {

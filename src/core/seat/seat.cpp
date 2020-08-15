@@ -1,6 +1,7 @@
 #include "seat.hpp"
 #include "wayfire/opengl.hpp"
 #include "../core-impl.hpp"
+#include "touch.hpp"
 #include "input-manager.hpp"
 #include "wayfire/render-manager.hpp"
 #include "wayfire/output-layout.hpp"
@@ -121,6 +122,12 @@ void input_manager::create_seat()
     cursor   = std::make_unique<wf_cursor>();
     lpointer = std::make_unique<wf::LogicalPointer>(
         nonstd::make_observer(this));
+
+    touch = std::make_unique<wf::touch_interface_t>(cursor->cursor, seat,
+        [this] (wf::pointf_t global, wf::pointf_t& local)
+    {
+        return this->input_surface_at(global, local);
+    });
 
     request_set_cursor.set_callback([&] (void *data)
     {

@@ -347,15 +347,11 @@ wf::pointf_t wf::compositor_core_impl_t::get_cursor_position()
 
 wf::pointf_t wf::compositor_core_impl_t::get_touch_position(int id)
 {
-    if (!input->our_touch)
+    const auto& state = input->touch->get_state();
+    auto it = state.fingers.find(id);
+    if (it != state.fingers.end())
     {
-        return {invalid_coordinate, invalid_coordinate};
-    }
-
-    auto it = input->our_touch->gesture_recognizer.current.find(id);
-    if (it != input->our_touch->gesture_recognizer.current.end())
-    {
-        return it->second.current;
+        return {it->second.current.x, it->second.current.y};
     }
 
     return {invalid_coordinate, invalid_coordinate};
@@ -398,7 +394,7 @@ wayfire_view wf::compositor_core_t::get_view_at(wf::pointf_t point)
 
 wf::surface_interface_t*wf::compositor_core_impl_t::get_touch_focus()
 {
-    return input->touch_focus;
+    return input->touch->get_focus();
 }
 
 wayfire_view wf::compositor_core_t::get_touch_focus_view()
@@ -408,6 +404,18 @@ wayfire_view wf::compositor_core_t::get_touch_focus_view()
         focus ? focus->get_main_surface() : nullptr);
 
     return view ? view->self() : nullptr;
+}
+
+void wf::compositor_core_impl_t::add_touch_gesture(
+    nonstd::observer_ptr<wf::touch::gesture_t> gesture)
+{
+    input->touch->add_touch_gesture(gesture);
+}
+
+void wf::compositor_core_impl_t::rem_touch_gesture(
+    nonstd::observer_ptr<wf::touch::gesture_t> gesture)
+{
+    input->touch->rem_touch_gesture(gesture);
 }
 
 std::vector<nonstd::observer_ptr<wf::input_device_t>> wf::compositor_core_impl_t::

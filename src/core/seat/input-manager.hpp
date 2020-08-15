@@ -22,10 +22,17 @@ extern "C"
     struct wlr_pointer_constraint_v1;
 }
 
-struct wf_gesture_recognizer;
+namespace wf
+{
+class touch_interface_t;
+namespace touch
+{
+class gesture_action_t;
+}
+}
+
 struct wlr_seat;
 
-struct wf_touch;
 struct wf_keyboard;
 
 enum wf_binding_type
@@ -77,8 +84,6 @@ class input_manager
     using binding_criteria = std::function<bool (wf::binding_t*)>;
     void rem_binding(binding_criteria criteria);
 
-    bool is_touch_enabled();
-
     void create_seat();
 
     void validate_drag_request(wlr_seat_request_start_drag_event *ev);
@@ -86,8 +91,6 @@ class input_manager
     std::vector<std::function<bool()>> match_keys(uint32_t mods, uint32_t key,
         uint32_t mod_binding_key = 0);
 
-    wf::signal_callback_t surface_map_state_changed;
-    wf::signal_callback_t on_views_updated;
     wf::signal_callback_t output_added;
 
     void refresh_device_mappings();
@@ -115,11 +118,12 @@ class input_manager
     wlr_seat *seat = nullptr;
     std::unique_ptr<wf_cursor> cursor;
     std::unique_ptr<wf::LogicalPointer> lpointer;
+    std::unique_ptr<wf::touch_interface_t> touch;
 
     wayfire_view keyboard_focus;
-    wf::surface_interface_t *touch_focus = nullptr;
 
-    std::unique_ptr<wf_touch> our_touch;
+    void handle_gesture(wf::touchgesture_t g);
+
     std::unique_ptr<wf_drag_icon> drag_icon;
 
     int pointer_count = 0, touch_count = 0;
@@ -148,16 +152,8 @@ class input_manager
     bool handle_keyboard_key(uint32_t key, uint32_t state);
     void handle_keyboard_mod(uint32_t key, uint32_t state);
 
-    void handle_touch_down(uint32_t time, int32_t id, wf::pointf_t pos);
-    void handle_touch_motion(uint32_t time, int32_t id, wf::pointf_t pos,
-        bool real_update);
-    void handle_touch_up(uint32_t time, int32_t id);
-
-    void handle_gesture(wf::touchgesture_t g);
-
     bool check_button_bindings(uint32_t button);
     bool check_axis_bindings(wlr_event_pointer_axis *ev);
-    void check_touch_bindings(int32_t x, int32_t y);
 
     /**
      * TODO: figure out a way to not erase the type of the option.

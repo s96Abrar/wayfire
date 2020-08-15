@@ -467,13 +467,6 @@ wf::binding_t*wf::output_t::add_axis(option_sptr_t<keybinding_t> axis,
         callback);
 }
 
-wf::binding_t*wf::output_t::add_touch(option_sptr_t<keybinding_t> mod,
-    wf::touch_callback *callback)
-{
-    return wf::get_core_impl().input->new_binding(WF_BINDING_TOUCH, mod, this,
-        callback);
-}
-
 wf::binding_t*wf::output_t::add_button(option_sptr_t<buttonbinding_t> button,
     wf::button_callback *callback)
 {

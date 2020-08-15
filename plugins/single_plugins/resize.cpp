@@ -18,9 +18,7 @@ extern "C"
 class wayfire_resize : public wf::plugin_interface_t
 {
     wf::signal_callback_t resize_request, view_destroyed;
-
     wf::button_callback activate_binding;
-    wf::touch_callback touch_activate_binding;
 
     wayfire_view view;
 
@@ -52,25 +50,7 @@ class wayfire_resize : public wf::plugin_interface_t
             return false;
         };
 
-        touch_activate_binding = [=] (int32_t sx, int32_t sy)
-        {
-            auto view = wf::get_core().get_touch_focus_view();
-            if (view)
-            {
-                is_using_touch     = true;
-                was_client_request = false;
-
-                return initiate(view);
-            }
-
-            return false;
-        };
-
         output->add_button(button, &activate_binding);
-        output->add_touch(
-            wf::create_option_string<wf::keybinding_t>("<super> <shift>"),
-            &touch_activate_binding);
-
         grab_interface->callbacks.pointer.button = [=] (uint32_t b, uint32_t state)
         {
             if ((state == WLR_BUTTON_RELEASED) && was_client_request &&
@@ -345,7 +325,6 @@ class wayfire_resize : public wf::plugin_interface_t
         }
 
         output->rem_binding(&activate_binding);
-        output->rem_binding(&touch_activate_binding);
 
         output->disconnect_signal("view-resize-request", &resize_request);
         output->disconnect_signal("view-disappeared", &view_destroyed);

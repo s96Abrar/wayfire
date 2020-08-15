@@ -42,6 +42,7 @@ if not use_system_wfconfig
 endif
 
 wfutils = subproject('wf-utils').get_variable('wfutils')
+wftouch = subproject('wf-touch').get_variable('wftouch')
 
 needs_libinotify = ['freebsd', 'dragonfly'].contains(host_machine.system())
 libinotify       = dependency('libinotify', required: needs_libinotify)
