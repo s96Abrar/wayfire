@@ -278,7 +278,8 @@ struct postprocessing_manager_t
 {
     using post_container_t = wf::safe_list_t<post_hook_t*>;
     post_container_t post_effects;
-    wf::framebuffer_t post_buffers[3];
+    static constexpr int TOTAL_BUFFERS = 3;
+    wf::framebuffer_t post_buffers[TOTAL_BUFFERS];
     /* Buffer to which other operations render to */
     static constexpr uint32_t default_out_buffer = 0;
 
@@ -301,8 +302,17 @@ struct postprocessing_manager_t
 
         OpenGL::render_begin();
         post_buffers[default_out_buffer].allocate(width, height);
-        post_buffers[default_out_buffer].geometry = {0, 0, width, height};
         OpenGL::render_end();
+
+        auto target = output->render->get_target_framebuffer();
+        for (int i = 0; i < TOTAL_BUFFERS; i++)
+        {
+            /* Copy attributes */
+            post_buffers[i].geometry = {0, 0, (int)output_width, (int)output_height};
+            post_buffers[i].scale = target.scale;
+            post_buffers[i].transform = target.transform;
+            post_buffers[i].wl_transform = target.wl_transform;
+        }
     }
 
     void add_post(post_hook_t *hook)
@@ -345,7 +355,6 @@ struct postprocessing_manager_t
             OpenGL::render_begin();
             /* Make sure we have the correct resolution */
             next_buffer.allocate(output_width, output_height);
-            next_buffer.geometry = {0, 0, (int)output_width, (int)output_height};
             OpenGL::render_end();
 
             (*post)(post_buffers[last_buffer_idx], next_buffer);
@@ -592,7 +601,10 @@ class wf::render_manager::impl
         if (renderer)
         {
             auto fb = get_target_framebuffer();
-            workaround_wlroots_backend_y_invert(fb);
+            if (postprocessing->post_effects.size() == 0)
+            {
+                workaround_wlroots_backend_y_invert(fb);
+            }
             renderer(fb);
             /* TODO: let custom renderers specify what they want to repaint... */
             swap_damage |= output_damage->get_wlr_damage_box();

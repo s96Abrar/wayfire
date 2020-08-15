@@ -73,21 +73,28 @@ class wayfire_zoom_screen : public wf::plugin_interface_t
         wlr_box box = {int(x), int(y), 1, 1};
         box = source.framebuffer_box_from_geometry_box(box);
 
-        x = box.x;
-        y = h - box.y;
-
         const float scale = (progression - 1) / progression;
-
         const float tw = w / progression, th = h / progression;
-        const float x1 = x * scale;
-        const float y1 = y * scale;
+        const float x1 = box.x * scale;
+        const float y1 = box.y * scale;
 
-        OpenGL::render_begin(source);
-        GL_CALL(glBindFramebuffer(GL_READ_FRAMEBUFFER, source.fb));
-        GL_CALL(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, destination.fb));
+        // render a subtexture of source onto dest
+        gl_geometry subtexture = {
+            x1 / source.viewport_width,
+            1.0f - y1 / source.viewport_height,
+            (x1 + tw) / source.viewport_width,
+            1.0f - (y1 + th) / source.viewport_height,
+        };
 
-        GL_CALL(glBlitFramebuffer(x1, y1, x1 + tw, y1 + th, 0, 0, w, h,
-            GL_COLOR_BUFFER_BIT, GL_LINEAR));
+        gl_geometry whole_screen = {
+            -1, 1, 1, -1
+        };
+
+        OpenGL::render_begin(destination);
+        OpenGL::render_transformed_texture(
+            source.tex, whole_screen, subtexture,
+            destination.transform * glm::inverse(source.transform),
+            glm::vec4(1.0), OpenGL::TEXTURE_USE_TEX_GEOMETRY);
         OpenGL::render_end();
 
         if (!progression.running() && (progression - 1 <= 0.01))
