@@ -233,6 +233,7 @@ void wf::touch_interface_t::handle_touch_down(int32_t id, uint32_t time,
     if (this->grab)
     {
         update_gestures(gesture_event);
+        update_cursor_state();
         if (grab->callbacks.touch.down)
         {
             auto wo = wf::get_core().get_active_output();
@@ -257,6 +258,7 @@ void wf::touch_interface_t::handle_touch_down(int32_t id, uint32_t time,
     set_touch_focus(focus, id, time, local);
     input->update_drag_icon();
     update_gestures(gesture_event);
+    update_cursor_state();
 }
 
 void wf::touch_interface_t::handle_touch_motion(int32_t id, uint32_t time,
@@ -313,6 +315,7 @@ void wf::touch_interface_t::handle_touch_up(int32_t id, uint32_t time)
         .finger = id,
         .pos    = finger_state.fingers[id].current
     });
+    update_cursor_state();
 
     if (this->grab)
     {
@@ -348,6 +351,13 @@ void wf::touch_interface_t::end_touch_down_grab()
                 {f.second.current.x, f.second.current.y}, false);
         }
     }
+}
+
+void wf::touch_interface_t::update_cursor_state()
+{
+    auto& cursor = wf::get_core_impl().input->cursor;
+    /* just set the cursor mode, independent of how many fingers we have */
+    cursor->set_touchscreen_mode(true);
 }
 
 constexpr static int MIN_FINGERS = 3;

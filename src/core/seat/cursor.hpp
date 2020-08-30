@@ -27,8 +27,13 @@ struct wf_cursor
     void set_cursor(wlr_seat_pointer_request_set_cursor_event *ev,
         bool validate_request);
     void set_cursor(std::string name);
-
     void hide_cursor();
+
+    /**
+     * Start/stop touchscreen mode, which means the cursor will be hidden.
+     * It will be shown again once a pointer or tablet event happens.
+     */
+    void set_touchscreen_mode(bool enabled);
 
     /* Move the cursor to the given point */
     void warp_cursor(wf::pointf_t point);
@@ -51,6 +56,8 @@ struct wf_cursor
 
     wlr_cursor *cursor = NULL;
     wlr_xcursor_manager *xcursor = NULL;
+
+    bool touchscreen_mode_active = false;
 };
 
 #endif /* end of include guard: CURSOR_HPP */

@@ -90,6 +90,9 @@ class touch_interface_t : public noncopyable_t
 
     std::unique_ptr<touch::gesture_t> multiswipe, multipinch;
     void add_default_gestures();
+
+    /** Enable/disable cursor depending on how many touch points are there */
+    void update_cursor_state();
 };
 }
 

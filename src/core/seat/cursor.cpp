@@ -9,6 +9,8 @@
 #include "tablet.hpp"
 #include "wayfire/signal-definitions.hpp"
 
+#include "wayfire/util/log.hpp"
+
 extern "C" {
 #include <wlr/util/region.h>
 #include <wlr/types/wlr_relative_pointer_v1.h>
@@ -51,6 +53,7 @@ void wf_cursor::setup_listeners()
 
 #define setup_passthrough_callback(evname) \
     on_ ## evname.set_callback([&] (void *data) { \
+        set_touchscreen_mode(false); \
         auto ev = static_cast<wlr_event_pointer_ ## evname*>(data); \
         emit_device_event_signal("pointer_" #evname, ev); \
         core.input->lpointer->handle_pointer_ ## evname(ev); \
@@ -76,6 +79,7 @@ void wf_cursor::setup_listeners()
      */
 #define setup_tablet_callback(evname) \
     on_tablet_ ## evname.set_callback([&] (void *data) { \
+        set_touchscreen_mode(false); \
         auto ev = static_cast<wlr_event_tablet_tool_ ## evname*>(data); \
         emit_device_event_signal("tablet_" #evname, ev); \
         if (ev->device->tablet->data) { \
@@ -144,6 +148,12 @@ void wf_cursor::detach_device(wlr_input_device *device)
 
 void wf_cursor::set_cursor(std::string name)
 {
+    LOGI("server set cursor ", this->touchscreen_mode_active, " ", name);
+    if (this->touchscreen_mode_active)
+    {
+        return;
+    }
+
     if (name == "default")
     {
         name = "left_ptr";
@@ -170,6 +180,12 @@ wf::pointf_t wf_cursor::get_cursor_position()
 void wf_cursor::set_cursor(wlr_seat_pointer_request_set_cursor_event *ev,
     bool validate_request)
 {
+    LOGI("client set cursor ", this->touchscreen_mode_active, " ", ev->surface);
+    if (this->touchscreen_mode_active)
+    {
+        return;
+    }
+
     auto& input = wf::get_core_impl().input;
     if (validate_request)
     {
@@ -184,6 +200,23 @@ void wf_cursor::set_cursor(wlr_seat_pointer_request_set_cursor_event *ev,
     {
         wlr_cursor_set_surface(cursor, ev->surface,
             ev->hotspot_x, ev->hotspot_y);
+    }
+}
+
+void wf_cursor::set_touchscreen_mode(bool enabled)
+{
+    if (this->touchscreen_mode_active == enabled)
+    {
+        return;
+    }
+
+    this->touchscreen_mode_active = enabled;
+    if (enabled)
+    {
+        hide_cursor();
+    } else
+    {
+        set_cursor("default");
     }
 }
 
