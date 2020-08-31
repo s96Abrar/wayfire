@@ -148,7 +148,6 @@ void wf_cursor::detach_device(wlr_input_device *device)
 
 void wf_cursor::set_cursor(std::string name)
 {
-    LOGI("server set cursor ", this->touchscreen_mode_active, " ", name);
     if (this->touchscreen_mode_active)
     {
         return;
@@ -180,7 +179,6 @@ wf::pointf_t wf_cursor::get_cursor_position()
 void wf_cursor::set_cursor(wlr_seat_pointer_request_set_cursor_event *ev,
     bool validate_request)
 {
-    LOGI("client set cursor ", this->touchscreen_mode_active, " ", ev->surface);
     if (this->touchscreen_mode_active)
     {
         return;

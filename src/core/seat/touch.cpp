@@ -173,26 +173,27 @@ void wf::touch_interface_t::set_touch_focus(wf::surface_interface_t *surface,
     /* Manage the touch_focus, we take only the first finger for that */
     if (id == 0)
     {
-        auto compositor_surface =
-            wf::compositor_surface_from_surface(this->focus);
+        // first change the focus, so that plugins can freely grab input in
+        // response to touch_down/up
+        auto old_focus = this->focus;
+        this->focus = surface;
+
+        auto compositor_surface = compositor_surface_from_surface(old_focus);
         if (compositor_surface)
         {
             compositor_surface->on_touch_up();
         }
 
-        compositor_surface = wf::compositor_surface_from_surface(surface);
+        compositor_surface = compositor_surface_from_surface(surface);
         if (compositor_surface)
         {
             compositor_surface->on_touch_down(point.x, point.y);
         }
-
-        this->focus = surface;
     }
 }
 
 void wf::touch_interface_t::update_gestures(const wf::touch::gesture_event_t& ev)
 {
-    finger_state.update(ev);
     for (auto& gesture : this->gestures)
     {
         if ((this->finger_state.fingers.size() == 1) &&
@@ -229,6 +230,7 @@ void wf::touch_interface_t::handle_touch_down(int32_t id, uint32_t time,
         .finger = id,
         .pos    = {point.x, point.y}
     };
+    finger_state.update(gesture_event);
 
     if (this->grab)
     {
@@ -264,12 +266,14 @@ void wf::touch_interface_t::handle_touch_down(int32_t id, uint32_t time,
 void wf::touch_interface_t::handle_touch_motion(int32_t id, uint32_t time,
     wf::pointf_t point, bool is_real_event)
 {
-    update_gestures({
+    const wf::touch::gesture_event_t gesture_event = {
         .type   = wf::touch::EVENT_TYPE_MOTION,
         .time   = time,
         .finger = id,
         .pos    = {point.x, point.y}
-    });
+    };
+    update_gestures(gesture_event);
+    finger_state.update(gesture_event);
 
     if (this->grab)
     {
@@ -309,12 +313,15 @@ void wf::touch_interface_t::handle_touch_motion(int32_t id, uint32_t time,
 
 void wf::touch_interface_t::handle_touch_up(int32_t id, uint32_t time)
 {
-    update_gestures({
+    const wf::touch::gesture_event_t gesture_event = {
         .type   = wf::touch::EVENT_TYPE_TOUCH_UP,
         .time   = time,
         .finger = id,
         .pos    = finger_state.fingers[id].current
-    });
+    };
+    update_gestures(gesture_event);
+    finger_state.update(gesture_event);
+
     update_cursor_state();
 
     if (this->grab)
